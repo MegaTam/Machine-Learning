@@ -1,0 +1,138 @@
+'''Implement PCA and K-means from scratch, (i.e., no third-party or off-the-shelf package or library are allowed). 
+First calculate the projection of each data point onto a two-dimensional subspace using PCA.
+Then doing a K-means clustering to cluster the data points into 3 clusters.
+Finally, implement 2 evaluation metrics including Silhouette Coefficient and Rand Index from scratch 
+(i.e., not calling off-the-shelf package) to evaluate the performance of above clustering algorithms.'''
+
+import numpy as np
+import random
+
+'''Read and get the factors'''
+factors_list = []   # store the factors of each data points
+class_list = []     # store the class of each data points
+with open(r'C:\Users\谭兆宏\Desktop\seeds.txt') as seeds:
+    data = seeds.readlines()        # data contains the whole messages in the file
+    for i in range(len(data)):
+        data[i] = data[i].split('\t')
+        # The first 7 numbers in a line are the factors of each data point
+        factors_list.append([float(data[i][0]), float(data[i][1]), float(data[i][2]), float(data[i][3]),
+                            float(data[i][4]), float(data[i][5]), float(data[i][6])])
+        # The last number in a line is the class (but we should exclude \n away)
+        class_list.append(int(data[i][7][0]))
+factors_list = np.array(factors_list)
+
+'''PCA'''
+# Sort the eigen values by descending order
+for line in factors_list:
+    for element in line:
+        element -= np.mean(line)
+matrix = np.dot(factors_list.T, factors_list)
+eigen_value, eigen_vector = np.linalg.eig(matrix)
+index_before_sort = np.argsort(eigen_value)[::-1]           # get the index before sorting
+eigen_value_sorted = eigen_value[index_before_sort]         # sort the eigen_value in descending order
+eigen_vector_sorted = eigen_vector[:, index_before_sort]    # sort the eigen_vector in descending order
+dimension = 2
+main_component = eigen_vector_sorted[0:dimension]   # extract the top 2 main components
+data_after_reducing_dimension = np.dot(factors_list, main_component.T)  # do dimension deducing on the data set
+
+'''K-means clusters'''
+def distance(a, b):
+    return np.sqrt(np.square(a[0]-b[0])+np.square(a[1]-b[1]))
+def classification(point, cen1, cen2, cen3):
+    distance_list = [distance(point, cen1), distance(point, cen2), distance(point, cen3)]
+    return distance_list.index(min(distance_list))+1    # form group1, group2, group3
+initial_center = []
+for i in range(3):
+    initial_index = random.randint(0, 210)
+    initial_center.append(data_after_reducing_dimension[initial_index]) # The list contains the 3 initial centers
+group_1, group_2, group_3 = [], [], []
+for i in range(len(data_after_reducing_dimension)):
+    group = classification(data_after_reducing_dimension[i],
+                           initial_center[0], initial_center[1], initial_center[2])
+    if group == 1:   group_1.append(i)
+    elif group == 2: group_2.append(i)
+    elif group == 3: group_3.append(i)
+max_interation = 5000
+for times in range(max_interation):
+    x_bar_1, y_bar_1, x_bar_2, y_bar_2, x_bar_3, y_bar_3 = 0, 0, 0, 0, 0, 0
+    group_1_current, group_2_current, group_3_current = [], [], []
+    for i in range(len(group_1)):
+        x_bar_1 += data_after_reducing_dimension[group_1[i]][0] / len(group_1)
+        y_bar_1 += data_after_reducing_dimension[group_1[i]][1] / len(group_1)
+    for i in range(len(group_2)):
+        x_bar_2 += data_after_reducing_dimension[group_2[i]][0] / len(group_2)
+        y_bar_2 += data_after_reducing_dimension[group_2[i]][1] / len(group_2)
+    for i in range(len(group_3)):
+        x_bar_3 += data_after_reducing_dimension[group_3[i]][0] / len(group_3)
+        y_bar_3 += data_after_reducing_dimension[group_3[i]][1] / len(group_3)
+    # get the 3 centers of the 3 groups
+    center_1 = np.array([x_bar_1, y_bar_1])
+    center_2 = np.array([x_bar_2, y_bar_2])
+    center_3 = np.array([x_bar_3, y_bar_3])
+    for i in range(len(data_after_reducing_dimension)):
+        group = classification(data_after_reducing_dimension[i], center_1, center_2, center_3)
+        if group == 1:
+            group_1_current.append(i)
+        elif group == 2:
+            group_2_current.append(i)
+        elif group == 3:
+            group_3_current.append(i)
+    if group_1_current in [group_1, group_2, group_3]:
+        if group_2_current in [group_1, group_2, group_3]:
+            if group_3_current in [group_1, group_2, group_3]:
+                break
+    else:
+        group_1, group_2, group_3 = group_1_current, group_2_current, group_3_current
+print(group_1, '\n', group_2, '\n', group_3)
+group_list = sorted([group_1, group_2, group_3])
+group_1 = group_list[0]
+group_2 = group_list[2]
+group_3 = group_list[1]
+
+'''Test the model'''
+'''Silhouette Coefficient'''
+s_list_1, s_list_2, s_list_3 = [], [], []
+def distance_among_group(point, group_name):
+    distance_to_group = 0
+    for data_point_index in group_name:
+        data_point = data_after_reducing_dimension[data_point_index]
+        distance_to_group += distance(point, data_point)
+    return distance_to_group/len(group_name)
+def calculate(group_name, slist):
+    for index in group_name:
+        point_info = data_after_reducing_dimension[index]
+        distance_list = [distance(point_info, center_1),
+                         distance(point_info, center_2),
+                         distance(point_info, center_3)]
+        next_nearest = distance_list.index(sorted(distance_list)[1])    # find the index of middle distance
+        group_list = [group_1, group_2, group_3]
+        a = distance_among_group(point_info, group_name)
+        b = distance_among_group(point_info, group_list[next_nearest])
+        slist.append((b-a) / max(a, b))
+calculate(group_1, s_list_1)
+calculate(group_2, s_list_2)
+calculate(group_3, s_list_3)
+print(s_list_1)
+print(s_list_2)
+print(s_list_3)
+
+'''Rand Index'''
+real_1, real_2, real_3 = [], [], []
+for index in range(len(class_list)):
+    if class_list[index] == 1:
+        real_1.append(index)
+    elif class_list[index] == 2:
+        real_2.append(index)
+    elif class_list[index] == 3:
+        real_3.append(index)
+a, b, n = 0, 0, len(data_after_reducing_dimension)
+for i in range(len(data_after_reducing_dimension)):
+    for j in range(i+1, len(data_after_reducing_dimension)):
+        if (i in group_1 and j in group_1) or (i in group_2 and j in group_2) or (i in group_3 and j in group_3):
+            if (i in real_1 and j in real_1) or (i in real_2 and j in real_2) or (i in real_3 and j in real_3):
+                a += 1
+        elif (i in group_1 and j not in group_1) or (i in group_2 and j not in group_2) or (i in group_3 and j not in group_3):
+            if (i in real_1 and j not in real_1) or (i in real_2 and j not in real_2) or (i in real_3 and j not in real_3):
+                b += 1
+rand_index = (a+b)/(n*(n-1)/2)
+print(rand_index)
