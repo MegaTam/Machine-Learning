@@ -1,0 +1,41 @@
+'''This is a program using neural net work to do classifying.
+  Use the function ”MLPClassifier” of sk-learn to construct a fully connected network to classify the Fashion-MNIST data.'''
+  
+import pandas as pd
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score
+
+train_set = pd.read_csv(r"C:\Users\谭兆宏\Desktop\train.csv")
+test_set = pd.read_csv(r"C:\Users\谭兆宏\Desktop\test.csv")
+
+title_list = []
+for i in range(784):
+    title_list.append('pixel'+str(i))
+# split the data into x and y
+X_train = train_set.drop('Category', axis=1)
+X_train = X_train.drop('Id', axis=1)
+X_train.columns = title_list
+y_train = train_set['Category']
+X_test = test_set.drop('label', axis=1)
+X_test.columns = title_list
+y_test = test_set['label']
+y_test.columns = 'Category'
+
+number_of_hidden_layers, number_of_hidden_nodes, list_of_optimizers = [1, 2, 3], [50, 200, 784], ['adam', 'sgd']
+learning_rate = [0.001, 0.01]
+# Create and train the MLPClassifier
+for layers in number_of_hidden_layers:
+    for nodes in number_of_hidden_nodes:
+        for optimizer in list_of_optimizers:
+            for rate in learning_rate:
+                hidden_layer_size = tuple([nodes]*layers)
+                mlp = MLPClassifier(hidden_layer_sizes=hidden_layer_size, solver=optimizer,
+                                    max_iter=1000, learning_rate_init=rate)
+                mlp.fit(X_train, y_train)
+                y_predict = mlp.predict(X_test)
+                accuracy = accuracy_score(y_test, y_predict)
+                print('The current hidden layer is:', layers,
+                      'The current number of hidden nodes is:', nodes, '\n',
+                      'The current optimize is:', optimizer,
+                      'The current learning rate is:', rate)
+                print('The current accuracy is:', accuracy, '\n')
