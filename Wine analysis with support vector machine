@@ -1,0 +1,202 @@
+'''First do the data preprocessing and split the data set into a training set and a testing set
+    Then import the SVC package from sklearn package to implement Support Vector Machine '''
+
+import numpy as np
+import sklearn
+from sklearn.svm import SVC
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+
+wines = sklearn.datasets.load_wine()    # import the data set 'wine'
+X = wines.data                          # X stores the attributes of each instance
+y = wines.target                        # y stores the class of each instance
+# split the set X and y into training set and testing set
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, shuffle=True)
+
+'''question(a)'''
+model = SVC(kernel='linear', C=1e5)
+model.fit(X_train, y_train)             # form a model of SVC based on X_train and y_train
+'''create the prediction of training set and testing set'''
+list_of_training_predict = model.predict(X_train)
+list_of_testing_predict = model.predict(X_test)
+list_of_predict = model.predict(X)
+'''get the error rate'''
+for i in range(len(X_test)):
+    if list_of_testing_predict[i] != y_test[i]:
+        error = X_test[i]
+        for num in range(len(X)):
+            if False not in (X[num] == error):
+                print('error of test occurs at index', num)       # So these two classes are not linear separable
+                print('the actual class is', y_test[i])
+                print('the predicted class is', list_of_testing_predict[i])
+'''get the support vector indices'''
+support_vector_indices = model.support_
+i_0, i_1, i_2 = [], [], []
+for v_index in support_vector_indices:
+    if list_of_predict[v_index] == 0: i_0.append(v_index)
+    elif list_of_predict[v_index] == 1: i_1.append(v_index)
+    elif list_of_predict[v_index] == 2: i_2.append(v_index)
+'''output the solutions'''
+print('training error is ', 1-model.score(X_train, y_train))
+print('testing error is ', 1-model.score(X_test, y_test))
+print('w_of_wine_type_0: ', model.coef_[0])
+print('b_of_wine_type_0: ', model.intercept_[0])
+print('support_vector_indices_of_wine_type_0', sorted(i_0))
+print('w_of_wine_type_1: ', model.coef_[1])
+print('b_of_wine_type_1: ', model.intercept_[1])
+print('support_vector_indices_of_wine_type_1', sorted(i_1))
+print('w_of_wine_type_2: ', model.coef_[2])
+print('b_of_wine_type_2: ', model.intercept_[2])
+print('support_vector_indices_of_wine_type_2', sorted(i_2))
+
+'''question(b)'''
+'''Create the model based on training data set'''
+for t in range(1, 11):
+    c_value = 0.1*t
+    clf = SVC(C=c_value, kernel='linear', decision_function_shape='ovr')
+    clf.fit(X_train, y_train)
+    list_of_predict = clf.predict(X)
+    '''get the support vector indices'''
+    support_vector_indices = clf.support_
+    i_0, i_1, i_2 = [], [], []
+    for v_index in support_vector_indices:
+        if list_of_predict[v_index] == 0: i_0.append(v_index)
+        elif list_of_predict[v_index] == 1: i_1.append(v_index)
+        elif list_of_predict[v_index] == 2: i_2.append(v_index)
+    '''calculate the slack variables'''
+    w_0, w_1, w_2 = clf.coef_[0], clf.coef_[1], clf.coef_[2]
+    b_0, b_1, b_2 = clf.intercept_[0], clf.intercept_[1], clf.intercept_[2]
+    w_val0, w_val1, w_val2 = np.linalg.norm(w_0), np.linalg.norm(w_1), np.linalg.norm(w_2)
+    slack_variable_0_p, slack_variable_1_p, slack_variable_2_p = [], [], []
+    slack_variable_0_n, slack_variable_1_n, slack_variable_2_n = [], [], []
+    for index in range(len(X_train)):
+        value_0 = np.dot(w_0.transpose(), X_train[index])+b_0
+        if y_train[index] == 0:
+            if value_0 < 1:
+                slack_variable_0_p.append(abs(value_0-1)/w_val0)
+        elif y_train[index] != 0:
+            if value_0 > -1:
+                slack_variable_0_n.append(abs(value_0-1)/w_val0)
+    for index in range(len(X_train)):
+        value_1 = np.dot(w_1.transpose(), X_train[index])+b_1
+        if y_train[index] == 0:
+            if value_1 < 1:
+                slack_variable_1_p.append(abs(value_1-1)/w_val1)
+        elif y_train[index] != 0:
+            if value_1 > -1:
+                slack_variable_1_n.append(abs(value_1-1)/w_val1)
+    for index in range(len(X_train)):
+        value_2 = np.dot(w_2.transpose(), X_train[index])+b_2
+        if y_train[index] == 0:
+            if value_2 < 1:
+                slack_variable_2_p.append(abs(value_2-1)/w_val2)
+        elif y_train[index] != 0:
+            if value_2 > -1:
+                slack_variable_2_n.append(abs(value_2-1)/w_val2)
+    '''output the solutions'''
+    print('The recent C value is', c_value)
+    print('training error is: ', 1-clf.score(X_train, y_train))
+    print('testing error is: ', 1-clf.score(X_test, y_test))
+    print('w_of_wine_type_0: ', clf.coef_[0])
+    print('b_of_wine_type_0: ', clf.intercept_[0])
+    print('support_vector_indices_of_wine_type_0: ', i_0)
+    print('positive_slack_variable_of_wine_type_0: ', slack_variable_0_p)
+    print('amount of positive slack variable of type_0 is: ', len(slack_variable_0_p))
+    print('negative_slack_variable_of_wine_type_0: ', slack_variable_0_n)
+    print('amount of negative slack variable of type_0 is: ', len(slack_variable_0_n))
+    print('w_of_wine_type_1: ', clf.coef_[1])
+    print('b_of_wine_type_1: ', clf.intercept_[1])
+    print('support_vector_indices_of_wine_type_1: ', i_1)
+    print('positive slack_variable_of_wine_type_1: ', slack_variable_1_p)
+    print('amount of positive slack variable of type_1 is: ', len(slack_variable_1_p))
+    print('negative_slack_variable_of_wine_type_1: ', slack_variable_1_n)
+    print('amount of negative slack variable of type_1 is: ', len(slack_variable_1_n))
+    print('w_of_wine_type_2: ', clf.coef_[2])
+    print('b_of_wine_type_2: ', clf.intercept_[2])
+    print('support_vector_indices_of_wine_type_2: ', i_2)
+    print('positive_slack_variable_of_wine_type_2: ', slack_variable_2_p)
+    print('amount of positive slack variable of type_2 is: ', len(slack_variable_2_p))
+    print('negative_slack_variable_of_wine_type_2: ', slack_variable_2_n)
+    print('amount of negative slack variable of type_2 is: ', len(slack_variable_2_n))
+
+'''question(c)'''
+'''part(a)'''
+clf_2 = SVC(C=1, kernel='poly', degree=2, decision_function_shape='ovr')
+clf_2.fit(X_train, y_train)
+list_of_predict_2 = clf_2.predict(X)
+# get the support vector indices
+support_vector_indices = clf_2.support_
+i_0, i_1, i_2 = [], [], []
+for v_index in support_vector_indices:
+    if list_of_predict_2[v_index] == 0: i_0.append(v_index)
+    elif list_of_predict_2[v_index] == 1: i_1.append(v_index)
+    elif list_of_predict_2[v_index] == 2: i_2.append(v_index)
+# output the results
+print('training error is: ', 1-clf_2.score(X_train, y_train))
+print('testing error is: ', 1-clf_2.score(X_test, y_test))
+print('b_of_wine_type_0 is: ', clf_2.intercept_[0])
+print('support_vector_indices_of_wine_type_0 is: ', i_0)
+print('b_of_wine_type_1 is: ', clf_2.intercept_[1])
+print('support_vector_indices_of_wine_type_0 is: ', i_1)
+print('b_of_wine_type_2 is: ', clf_2.intercept_[2])
+print('support_vector_indices_of_wine_type_0 is: ', i_2)
+'''part(b)'''
+clf_3 = SVC(C=1, kernel='poly', degree=3, decision_function_shape='ovr')
+clf_3.fit(X_train, y_train)
+list_of_predict_3 = clf_3.predict(X)
+# get the support vector indices
+support_vector_indices = clf_3.support_
+i_0, i_1, i_2 = [], [], []
+for v_index in support_vector_indices:
+    if list_of_predict_3[v_index] == 0: i_0.append(v_index)
+    elif list_of_predict_3[v_index] == 1: i_1.append(v_index)
+    elif list_of_predict_3[v_index] == 2: i_2.append(v_index)
+# output the results
+print('training error is: ', 1-clf_3.score(X_train, y_train))
+print('testing error is: ', 1-clf_3.score(X_test, y_test))
+print('b_of_wine_type_0 is: ', clf_3.intercept_[0])
+print('support_vector_indices_of_wine_type_0 is: ', i_0)
+print('b_of_wine_type_1 is: ', clf_3.intercept_[1])
+print('support_vector_indices_of_wine_type_0 is: ', i_1)
+print('b_of_wine_type_2 is: ', clf_3.intercept_[2])
+print('support_vector_indices_of_wine_type_0 is: ', i_2)
+'''part(c)'''
+clf_4 = SVC(C=1, kernel='rbf', gamma=1)
+clf_4.fit(X_train, y_train)
+list_of_predict_4 = clf_4.predict(X)
+# get the support vector indices
+support_vector_indices = clf_4.support_
+i_0, i_1, i_2 = [], [], []
+for v_index in support_vector_indices:
+    if list_of_predict_4[v_index] == 0: i_0.append(v_index)
+    elif list_of_predict_4[v_index] == 1: i_1.append(v_index)
+    elif list_of_predict_4[v_index] == 2: i_2.append(v_index)
+# output the results
+print('training error is: ', 1-clf_4.score(X_train, y_train))
+print('testing error is: ', 1-clf_4.score(X_test, y_test))
+print('b_of_wine_type_0 is: ', clf_4.intercept_[0])
+print('support_vector_indices_of_wine_type_0 is: ', i_0)
+print('b_of_wine_type_1 is: ', clf_4.intercept_[1])
+print('support_vector_indices_of_wine_type_0 is: ', i_1)
+print('b_of_wine_type_2 is: ', clf_4.intercept_[2])
+print('support_vector_indices_of_wine_type_0 is: ', i_2)
+'''part(d)'''
+clf_5 = SVC(C=1, kernel='sigmoid', gamma=1)
+clf_5.fit(X_train, y_train)
+list_of_predict_5 = clf_5.predict(X)
+# get the support vector indices
+support_vector_indices = clf_5.support_
+i_0, i_1, i_2 = [], [], []
+for v_index in support_vector_indices:
+    if list_of_predict_5[v_index] == 0: i_0.append(v_index)
+    elif list_of_predict_5[v_index] == 1: i_1.append(v_index)
+    elif list_of_predict_5[v_index] == 2: i_2.append(v_index)
+# output the results
+print('training error is: ', 1-clf_5.score(X_train, y_train))
+print('testing error is: ', 1-clf_5.score(X_test, y_test))
+print('b_of_wine_type_0 is: ', clf_5.intercept_[0])
+print('support_vector_indices_of_wine_type_0 is: ', i_0)
+print('b_of_wine_type_1 is: ', clf_5.intercept_[1])
+print('support_vector_indices_of_wine_type_0 is: ', i_1)
+print('b_of_wine_type_2 is: ', clf_5.intercept_[2])
+print('support_vector_indices_of_wine_type_0 is: ', i_2)
