@@ -1,0 +1,103 @@
+import pandas as pd
+import seaborn
+import seaborn as sns
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+# Read the file 'boston.csv'
+data = pd.read_csv(r"C:\Users\谭兆宏\Desktop\boston.csv")
+
+'''Step1: Process the incomplete data'''
+column_list = ['crim', 'zn', 'indus', 'chas', 'nox', 'rm', 'age', 'dis',
+             'rad', 'tax', 'ptratio', 'b', 'lstat', 'medv']
+print(data.isnull().any())
+# All return false, i.e. there is no incomplete data
+for columns in column_list:
+    a = data[columns].unique()
+    list_of_type = []
+    for i in a:
+        list_of_type.append(type(i))
+    list_of_type = list(set(list_of_type))
+    print(list_of_type)
+#Each column contains one type of data only, i.e. no invalid data
+
+# '''Step2: seaborn to visualize the dataset'''
+data_to_plot = sns.load_dataset('boston', data_home=r'C:/Users/谭兆宏/seaborn-data', cache=True)
+# for column_head in ['crim', 'zn', 'indus', 'chas', 'nox', 'rm', 'age', 'dis',
+#              'rad', 'tax', 'ptratio', 'b', 'lstat']:
+#     plt.figure(figsize=(12, 6))
+#     sns.lineplot(x=column_head, y='medv', data=data_to_plot)
+#     sns.scatterplot(x=column_head, y='medv', data=data_to_plot)
+#     plt.show()
+
+'''Step3: seaborn.heatmap to plot pairwise correlation on data'''
+sns.set(font_scale=0.75)
+sns.heatmap(data=data_to_plot.corr(), annot=True)
+plt.title('Pairwise correlation on data')
+plt.show()
+# 'lstat' shows great negative correlation,
+# 'rm' shows the highest positive correlation
+# 'ptratio' shows negative correlation
+
+# '''Step4: sklearn.preprocessing.MinMaxScaler to scale the columns'''
+scaler = MinMaxScaler()
+data_column_0 = data_to_plot[["medv"]]
+data_column_0_new = scaler.fit_transform(data_column_0)
+data_column_1 = data_to_plot[["rm"]]
+data_column_1_new = scaler.fit_transform(data_column_1)
+data_column_2 = data_to_plot[["lstat"]]
+data_column_2_new = scaler.fit_transform(data_column_2)
+data_column_3 = data_to_plot[["ptratio"]]
+data_column_3_new = scaler.fit_transform(data_column_3)
+seaborn.regplot(x=data_column_1_new, y=data_column_0_new, ci=95)
+plt.xlabel('rm')
+plt.show()
+seaborn.regplot(x=data_column_2_new, y=data_column_0_new, ci=95)
+plt.xlabel('lstat')
+plt.show()
+seaborn.regplot(x=data_column_3_new, y=data_column_0_new, ci=95)
+plt.xlabel('ptratio')
+plt.show()
+
+'''Step5: Gradient Descent to predict the testing data'''
+# Deliver the data set into 2 parts, with a ratio of test:train=2:8
+train_0, test_0, train_1, test_1, train_2, test_2, train_3, test_3 = train_test_split(
+    data_column_0_new, data_column_1_new, data_column_2_new, data_column_3_new,
+    test_size=0.2, shuffle=False)
+# train_0 and test_0 are values of MEDV, the dependent variable Yi
+# train and test set 1-3 are values of independent variables X1,X2,X3
+# First regress a line
+train_list_x, test_list_x, train_list_y, test_list_y = [], [], [], []
+from sklearn.linear_model import LinearRegression
+for i in range(len(train_0)):
+    train_list_x.append([float(train_1[i][0]),
+                         float(train_2[i][0]), float(train_3[i][0])])
+    train_list_y.append(float(train_0[i][0]))
+for j in range(len(test_0)):
+    test_list_x.append([float(test_1[j][0]),
+                      float(test_2[j][0]), float(test_3[j][0])])
+    test_list_y.append(float(test_0[j][0]))
+model = LinearRegression()
+model.fit(train_list_x, train_list_y)
+w = model.coef_
+b = model.intercept_
+xtx_1 = np.linalg.inv(np.dot(np.transpose(train_list_x), train_list_x))
+beta_hat = np.dot(np.dot(xtx_1, np.transpose(train_list_x)), train_list_y)
+print(beta_hat)
+x1, x2, x3, amount = 0, 0, 0, len(train_list_x)
+for i in range(amount):
+    x1 += train_list_x[i][0]
+    x2 += train_list_x[i][1]
+    x3 += train_list_x[i][2]
+x1, x2, x3 = x1/amount, x2/amount, x3/amount    # average value of each x
+# Then do the gradient descent method
+
+# ends here
+train_accuracy = model.score(train_list_x, train_list_y)
+test_accuracy = model.score(test_list_x, test_list_y)
+print('train accuracy is: ', train_accuracy)
+print('test accuracy is: ', test_accuracy)
+
+'''Step6: Repeat step5 with different values of step sizes'''
